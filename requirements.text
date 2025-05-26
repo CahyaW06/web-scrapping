@@ -9,3 +9,4 @@ pip install pandas numpy textblob nltk scikit-learn langdetect
 pip install emoji
 pip install PySastrawi
 pip install textstat
+pip install xgboost

@@ -4,14 +4,22 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.actions.wheel_input import ScrollOrigin
-import time, mysql.connector
 from datetime import datetime
 from prep_func import *
 from save import to_db
 from preprocessing import preprocessing
 from get_attributes import *
 from scrapping_function import *
-import json
+import json, joblib, os, time, mysql.connector
+
+# directory for the model
+PYTHON_APP_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+MODELS_DIR = os.path.join(PYTHON_APP_DIR, "models")
+PREDICT_HELPFUL_DIR = os.path.join(MODELS_DIR, "predict-helpful")
+PREDICT_RATING_DIR = os.path.join(MODELS_DIR, "predict-rating")
+
+# Load model
+rating_xgb_model = joblib.load(os.path.join(PREDICT_RATING_DIR, "rating_xgboost.pkl"))
 
 # Initialize WebDriver
 options = webdriver.ChromeOptions()
@@ -161,6 +169,12 @@ while not on_target:
             except Exception as e:
                 print(f"Error is_extreme_review: {e}")
 
+            # predict rating
+            # try:
+            #     predicted_rating = rating_xgb_model.predict(content)
+            # except Exception as e:
+            #     print(f"Error predicted_rating: {e}")
+
             data_reviews.append({
                 "username": username,
                 "time": time,
@@ -176,7 +190,8 @@ while not on_target:
                 "reviewer_number_of_reviews": reviewer_number_of_reviews,
                 "image_count": image_count,
                 "is_extreme_review": is_extreme_review,
-                "raw_content": raw_content
+                "raw_content": raw_content,
+                # "predicted_rating": predicted_rating
             })
 
 driver.quit()
@@ -210,12 +225,14 @@ for item in data_reviews:
 
 if data_reviews: # Ensure data_reviews is not empty before trying to dump
     try:
-        json_output = json.dumps(data_reviews, default=json_datetime_converter, indent=4) # indent for pretty print, optional
-        print(json_output)
+        output = {
+            "reviews": data_reviews,
+            "total_reviews": len(data_reviews),
+        }
+        print(json.dumps(output, default=json_datetime_converter, indent=4, ensure_ascii=False)) # indent for pretty print, optional
 
-        if json_output:
-            # save to database
-            to_db(data_reviews)
+        # save to database
+        to_db(data_reviews)
 
     except TypeError as e:
         # Fallback or error representation if serialization fails for an unexpected reason
